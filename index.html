@@ -9,7 +9,22 @@ input{flex:1;padding:13px;border-radius:18px;border:1px solid #2d6170;background
 button{padding:12px 16px;border:0;border-radius:18px;background:#5ed8ef;color:#061018;font-weight:700}
 #reply{position:absolute;left:14px;right:14px;top:14px;padding:10px 13px;border-radius:14px;background:#071820cc;border:1px solid #285461;backdrop-filter:blur(8px)}
 .small{font-size:12px;opacity:.7;margin-top:3px}
-</style></head><body><div id="app"><div id="view"><div id="reply">接続準備中…<div class="small">実体メッシュの3Dモデル</div></div>
+</style></head><body>
+<div id="diagnostic" style="position:fixed;left:10px;right:10px;top:10px;z-index:9999;padding:12px;border-radius:10px;background:rgba(0,0,0,.82);color:#dff;font:14px/1.45 sans-serif;white-space:pre-wrap">3Dモデルを確認しています…</div>
+<script>
+window.addEventListener('error', function(e) {
+ const d=document.getElementById('diagnostic'); if(d) d.textContent='JavaScriptエラー: '+(e.message||'不明なエラー');
+});
+window.addEventListener('unhandledrejection', function(e) {
+ const d=document.getElementById('diagnostic'); if(d) d.textContent='読み込みエラー: '+(e.reason?.message||e.reason||'不明なエラー');
+});
+setTimeout(function(){
+ const d=document.getElementById('diagnostic'); if(!d) return;
+ if(document.querySelector('canvas')) d.textContent='3D表示領域を確認しました。GLB読み込みを確認中…';
+ else d.textContent='3Dモデルが表示されていません。GLBまたはThree.jsの読み込みを確認してください。';
+},3000);
+</script>
+<div id="app"><div id="view"><div id="reply">接続準備中…<div class="small">実体メッシュの3Dモデル</div></div>
 <div class="ui"><input id="msg" placeholder="話しかけてください"><button id="send">送信</button></div></div></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
