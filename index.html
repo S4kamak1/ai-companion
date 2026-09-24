@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#090b12"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest">
+<title>AI Companion Prototype</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#090b12;color:#eef1ff;font-family:system-ui,sans-serif}
+#app{height:100%;display:grid;grid-template-rows:1fr auto}
+#stage{position:relative}
+canvas{display:block;width:100%;height:100%}
+#status{position:absolute;top:16px;left:16px;padding:8px 12px;border:1px solid #31384d;border-radius:999px;background:#111522cc;font-size:13px}
+#chat{background:#0d1019ee;border-top:1px solid #30374a;padding:12px}
+#log{height:150px;overflow:auto;margin-bottom:10px}
+.msg{margin:7px 0;line-height:1.45}.you{color:#b8c6ff}.ai{color:#f0dfff}
+.row{display:flex;gap:8px}.row input{flex:1;padding:12px;border-radius:12px;border:1px solid #3a4258;background:#171b27;color:white}
+button{padding:11px 14px;border-radius:12px;border:1px solid #46506a;background:#20273a;color:white}
+button:active{transform:translateY(1px)}
+small{opacity:.65}
+</style>
+<link rel="icon" href="icon.svg" type="image/svg+xml"></head>
+<body>
+<div id="app">
+  <div id="stage">
+    <div id="status">AI COMPANION · prototype</div>
+  </div>
+  <section id="chat">
+    <div id="log"></div>
+    <div class="row">
+      <input id="input" placeholder="話しかけてください…" autocomplete="off">
+      <button id="mic">🎙</button>
+      <button id="send">送信</button>
+    </div>
+    <small>現在はローカル応答。AI APIを接続すると本物の会話AIにできます。</small>
+  </section>
+</div>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
+
+const stage=document.querySelector("#stage");
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x090b12);
+const camera=new THREE.PerspectiveCamera(35,stage.clientWidth/stage.clientHeight,.1,100);
+camera.position.set(0,1.55,5.5);
+
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setSize(stage.clientWidth,stage.clientHeight);
+stage.appendChild(renderer.domElement);
+
+scene.add(new THREE.HemisphereLight(0xbfd6ff,0x161828,2.0));
+const key=new THREE.DirectionalLight(0xffffff,2.5); key.position.set(2,4,4); scene.add(key);
+
+const avatar=new THREE.Group(); scene.add(avatar);
+const matSkin=new THREE.MeshStandardMaterial({color:0xf0c7bd,roughness:.8});
+const matHair=new THREE.MeshStandardMaterial({color:0x9ba8d7,roughness:.55});
+const matDress=new THREE.MeshStandardMaterial({color:0x252a42,metalness:.05,roughness:.7});
+const matAccent=new THREE.MeshStandardMaterial({color:0x9e8cff,emissive:0x25194c,emissiveIntensity:.8});
+
+function sphere(s,mat,pos){
+  const m=new THREE.Mesh(new THREE.SphereGeometry(s,32,24),mat); m.position.set(...pos); avatar.add(m); return m;
+}
+function box(size,mat,pos){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(...size),mat); m.position.set(...pos); avatar.add(m); return m;
+}
+const torso=box([1.15,1.55,.58],matDress,[0,.55,0]);
+sphere(.53,matSkin,[0,1.72,0]);
+sphere(.58,matHair,[0,2.02,-.02]);
+box([.92,.12,.18],matHair,[0,1.86,.48]); // fringe
+sphere(.07,matAccent,[-.19,1.75,.49]);
+sphere(.07,matAccent,[.19,1.75,.49]);
+const eyeL=sphere(.035,matSkin,[-.19,1.75,.54]);
+const eyeR=sphere(.035,matSkin,[.19,1.75,.54]);
+const armL=box([.22,1.2,.25],matDress,[-.72,.55,0]);
+const armR=box([.22,1.2,.25],matDress,[.72,.55,0]);
+sphere(.12,matSkin,[-.72,-.05,0]); sphere(.12,matSkin,[.72,-.05,0]);
+box([.42,1.15,.42],matDress,[-.3,-.75,0]);
+box([.42,1.15,.42],matDress,[.3,-.75,0]);
+sphere(.1,matAccent,[0,.05,.31]);
+
+let targetY=0, talking=0;
+function speak(text){
+  if(!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang="ja-JP"; u.rate=.92; u.pitch=1.08;
+  u.onstart=()=>talking=1; u.onend=()=>talking=0;
+  speechSynthesis.speak(u);
+}
+function addMsg(who,text){
+  const d=document.createElement("div"); d.className="msg "+(who==="you"?"you":"ai");
+  d.textContent=(who==="you"?"オーナー：":"AI：")+text;
+  document.querySelector("#log").appendChild(d);
+  document.querySelector("#log").scrollTop=99999;
+}
+function localReply(t){
+  const x=t.toLowerCase();
+  if(x.includes("おはよう")) return "おはようございます、オーナー。今日は何から始めましょうか。";
+  if(x.includes("疲れ")||x.includes("つかれ")) return "少し休むのも悪くありません。私はここにいます。";
+  if(x.includes("ff14")) return "FF14ですね。今日は何を進める予定ですか。";
+  if(x.includes("tft")) return "TFTですか。序盤の引きと、その場での判断について話しましょうか。";
+  return "……受け取りました、オーナー。まだ試作段階ですが、これから私の会話能力を接続できます。";
+}
+function send(){
+  const input=document.querySelector("#input"); const t=input.value.trim(); if(!t)return;
+  addMsg("you",t); input.value="";
+  setTimeout(()=>{const r=localReply(t); addMsg("ai",r); speak(r); targetY=.06; setTimeout(()=>targetY=0,700)},250);
+}
+document.querySelector("#send").onclick=send;
+document.querySelector("#input").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+if(SR){
+  const rec=new SR(); rec.lang="ja-JP"; rec.interimResults=false;
+  document.querySelector("#mic").onclick=()=>rec.start();
+  rec.onresult=e=>{document.querySelector("#input").value=e.results[0][0].transcript;send()};
+}else document.querySelector("#mic").disabled=true;
+
+addMsg("ai","……起動しました、オーナー。試作版です。");
+function animate(t){
+  requestAnimationFrame(animate);
+  const time=t*.001;
+  avatar.rotation.y += (Math.sin(time*.55)*.06-avatar.rotation.y)*.04;
+  avatar.position.y += (targetY+Math.sin(time*1.2)*.018-avatar.position.y)*.06;
+  const talkingNow=talking?Math.abs(Math.sin(time*14)):.0;
+  torso.scale.y=1+talkingNow*.012;
+  renderer.render(scene,camera);
+}
+animate(0);
+window.addEventListener("resize",()=>{
+  camera.aspect=stage.clientWidth/stage.clientHeight; camera.updateProjectionMatrix();
+  renderer.setSize(stage.clientWidth,stage.clientHeight);
+});
+</script>
+<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script></body>
+</html>
