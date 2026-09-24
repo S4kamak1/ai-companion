@@ -2,12 +2,18 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#090b12"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="manifest.webmanifest">
-<title>AI Companion Prototype</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#090b12">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>AI Companion · Original Sci-Fi AI</title>
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#090b12;color:#eef1ff;font-family:system-ui,sans-serif}
 #app{height:100%;display:grid;grid-template-rows:1fr auto}
-#stage{position:relative}
+#stage{position:relative;min-height:0}
 canvas{display:block;width:100%;height:100%}
 #status{position:absolute;top:16px;left:16px;padding:8px 12px;border:1px solid #31384d;border-radius:999px;background:#111522cc;font-size:13px}
 #chat{background:#0d1019ee;border-top:1px solid #30374a;padding:12px}
@@ -18,11 +24,11 @@ button{padding:11px 14px;border-radius:12px;border:1px solid #46506a;background:
 button:active{transform:translateY(1px)}
 small{opacity:.65}
 </style>
-<link rel="icon" href="icon.svg" type="image/svg+xml"></head>
+</head>
 <body>
 <div id="app">
   <div id="stage">
-    <div id="status">AI COMPANION · prototype</div>
+    <div id="status">AI COMPANION · original sci-fi AI</div>
   </div>
   <section id="chat">
     <div id="log"></div>
@@ -31,106 +37,249 @@ small{opacity:.65}
       <button id="mic">🎙</button>
       <button id="send">送信</button>
     </div>
-    <small>現在はローカル応答。AI APIを接続すると本物の会話AIにできます。</small>
+    <small>現在は試作版。次の段階でAI APIと接続します。</small>
   </section>
 </div>
+
 <script type="module">
 import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js";
 
 const stage=document.querySelector("#stage");
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x090b12);
-const camera=new THREE.PerspectiveCamera(35,stage.clientWidth/stage.clientHeight,.1,100);
-camera.position.set(0,1.55,5.5);
 
-const renderer=new THREE.WebGLRenderer({antialias:true});
+const camera=new THREE.PerspectiveCamera(
+  35, stage.clientWidth/stage.clientHeight, .1, 100
+);
+camera.position.set(0,.95,5.4);
+camera.lookAt(0,.45,0);
+
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
 renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.setSize(stage.clientWidth,stage.clientHeight);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
 stage.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xbfd6ff,0x161828,2.0));
-const key=new THREE.DirectionalLight(0xffffff,2.5); key.position.set(2,4,4); scene.add(key);
+scene.add(new THREE.HemisphereLight(0xcfe1ff,0x151827,2.1));
+const key=new THREE.DirectionalLight(0xffffff,2.6);
+key.position.set(2,4,4);
+scene.add(key);
+const rim=new THREE.PointLight(0x83aaff,4,7);
+rim.position.set(-2,2,1);
+scene.add(rim);
 
-const avatar=new THREE.Group(); scene.add(avatar);
-const matSkin=new THREE.MeshStandardMaterial({color:0xf0c7bd,roughness:.8});
-const matHair=new THREE.MeshStandardMaterial({color:0x9ba8d7,roughness:.55});
-const matDress=new THREE.MeshStandardMaterial({color:0x252a42,metalness:.05,roughness:.7});
-const matAccent=new THREE.MeshStandardMaterial({color:0x9e8cff,emissive:0x25194c,emissiveIntensity:.8});
+const avatar=new THREE.Group();
+avatar.position.y=.05;
+scene.add(avatar);
 
-function sphere(s,mat,pos){
-  const m=new THREE.Mesh(new THREE.SphereGeometry(s,32,24),mat); m.position.set(...pos); avatar.add(m); return m;
+// Original futuristic AI-companion design.
+// Silver-white hair, pale blue eyes, layered white/gray clothing,
+// subtle cyan interface accents, and calm sci-fi styling.
+const matSkin=new THREE.MeshStandardMaterial({color:0xf2d6d2,roughness:.82});
+const matHair=new THREE.MeshStandardMaterial({color:0xd8dced,roughness:.48});
+const matHair2=new THREE.MeshStandardMaterial({color:0xb9c4dc,roughness:.50});
+const matCoat=new THREE.MeshStandardMaterial({color:0xe8edf5,roughness:.68});
+const matInner=new THREE.MeshStandardMaterial({color:0x26304a,roughness:.60});
+const matBlue=new THREE.MeshStandardMaterial({
+  color:0x91bfff,emissive:0x244d9c,emissiveIntensity:1.7
+});
+const matDark=new THREE.MeshStandardMaterial({color:0x111827,roughness:.45});
+const panelMat=new THREE.MeshStandardMaterial({
+  color:0xcbd8ea,transparent:true,opacity:.72,roughness:.45
+});
+
+function mesh(g,mat,pos=[0,0,0],scale=[1,1,1]){
+  const m=new THREE.Mesh(g,mat);
+  m.position.set(...pos);
+  m.scale.set(...scale);
+  avatar.add(m);
+  return m;
 }
-function box(size,mat,pos){
-  const m=new THREE.Mesh(new THREE.BoxGeometry(...size),mat); m.position.set(...pos); avatar.add(m); return m;
+function sphere(r,mat,pos,scale=[1,1,1]){
+  return mesh(new THREE.SphereGeometry(r,32,24),mat,pos,scale);
 }
-const torso=box([1.15,1.55,.58],matDress,[0,.55,0]);
-sphere(.53,matSkin,[0,1.72,0]);
-sphere(.58,matHair,[0,2.02,-.02]);
-box([.92,.12,.18],matHair,[0,1.86,.48]); // fringe
-sphere(.07,matAccent,[-.19,1.75,.49]);
-sphere(.07,matAccent,[.19,1.75,.49]);
-const eyeL=sphere(.035,matSkin,[-.19,1.75,.54]);
-const eyeR=sphere(.035,matSkin,[.19,1.75,.54]);
-const armL=box([.22,1.2,.25],matDress,[-.72,.55,0]);
-const armR=box([.22,1.2,.25],matDress,[.72,.55,0]);
-sphere(.12,matSkin,[-.72,-.05,0]); sphere(.12,matSkin,[.72,-.05,0]);
-box([.42,1.15,.42],matDress,[-.3,-.75,0]);
-box([.42,1.15,.42],matDress,[.3,-.75,0]);
-sphere(.1,matAccent,[0,.05,.31]);
+function capsule(r,len,mat,pos,rot=[0,0,0]){
+  const m=mesh(new THREE.CapsuleGeometry(r,len,8,16),mat,pos);
+  m.rotation.set(...rot);
+  return m;
+}
+function box(size,mat,pos,rot=[0,0,0]){
+  const m=mesh(new THREE.BoxGeometry(...size),mat,pos);
+  m.rotation.set(...rot);
+  return m;
+}
 
-let targetY=0, talking=0;
+// Body and layered coat
+const torso=box([1.02,1.25,.54],matCoat,[0,.48,0]);
+box([.52,.98,.60],matInner,[0,.56,.28]);
+mesh(new THREE.ConeGeometry(.68,.62,32),matCoat,[0,-.30,0],[1,1,.78]);
+box([.58,.18,.40],matDark,[0,1.03,.05]);
+
+// Head and hair
+sphere(.50,matSkin,[0,1.67,.02],[.92,1.05,.90]);
+sphere(.56,matHair,[0,1.91,-.03],[1.02,1.08,.92]);
+
+// Long side/back locks
+capsule(.105,1.20,matHair2,[-.48,1.18,-.05],[0,0,-.16]);
+capsule(.105,1.20,matHair2,[.48,1.18,-.05],[0,0,.16]);
+capsule(.095,1.40,matHair,[-.34,.95,-.16],[.04,0,-.10]);
+capsule(.095,1.40,matHair,[.34,.95,-.16],[.04,0,.10]);
+
+// Soft fringe
+for(const [x,y,z,s,r] of [
+  [-.32,1.78,.43,.30,-.18],
+  [-.16,1.84,.47,.31,-.07],
+  [0,1.88,.48,.30,0],
+  [.16,1.84,.47,.31,.07],
+  [.32,1.78,.43,.30,.18]
+]){
+  const b=sphere(.13,matHair,[x,y,z],[s,.62,.42]);
+  b.rotation.z=r;
+}
+
+// Eyes
+sphere(.075,matDark,[-.19,1.69,.50],[1,.72,.38]);
+sphere(.075,matDark,[.19,1.69,.50],[1,.72,.38]);
+sphere(.032,matBlue,[-.19,1.69,.535]);
+sphere(.032,matBlue,[.19,1.69,.535]);
+
+// AI interface jewel and hair accessory
+sphere(.075,matBlue,[0,1.14,.35],[1,.75,.55]);
+const ring=mesh(new THREE.TorusGeometry(.16,.025,10,32),matBlue,[.50,1.77,.02]);
+ring.rotation.y=Math.PI/2;
+box([.12,.42,.06],matBlue,[.52,1.45,.04],[0,.15,-.15]);
+box([.12,.30,.06],matBlue,[.54,1.23,.04],[0,.15,-.15]);
+
+// Coat panels
+box([.22,1.35,.08],panelMat,[-.50,.18,-.02],[0,.04,-.10]);
+box([.22,1.35,.08],panelMat,[.50,.18,-.02],[0,-.04,.10]);
+
+// Sleeves and hands
+capsule(.13,.72,matCoat,[-.67,.47,0],[0,0,-.12]);
+capsule(.13,.72,matCoat,[.67,.47,0],[0,0,.12]);
+sphere(.115,matSkin,[-.73,.02,.02]);
+sphere(.115,matSkin,[.73,.02,.02]);
+
+// Boots
+box([.30,.62,.38],matDark,[-.23,-.82,.02]);
+box([.30,.62,.38],matDark,[.23,-.82,.02]);
+box([.34,.12,.50],matBlue,[-.23,-1.12,.07]);
+box([.34,.12,.50],matBlue,[.23,-1.12,.07]);
+
+// Floating interface particles
+const particles=new THREE.Group();
+scene.add(particles);
+for(let i=0;i<18;i++){
+  const p=sphere(.012,matBlue,[
+    (Math.random()-.5)*2.8,
+    .1+Math.random()*2.7,
+    -.4-Math.random()*1.2
+  ]);
+  particles.add(p);
+}
+
+let targetY=0,talking=0;
+
 function speak(text){
-  if(!("speechSynthesis" in window)) return;
+  if(!("speechSynthesis" in window))return;
   speechSynthesis.cancel();
   const u=new SpeechSynthesisUtterance(text);
-  u.lang="ja-JP"; u.rate=.92; u.pitch=1.08;
-  u.onstart=()=>talking=1; u.onend=()=>talking=0;
+  u.lang="ja-JP";
+  u.rate=.92;
+  u.pitch=1.08;
+  u.onstart=()=>talking=1;
+  u.onend=()=>talking=0;
   speechSynthesis.speak(u);
 }
+
 function addMsg(who,text){
-  const d=document.createElement("div"); d.className="msg "+(who==="you"?"you":"ai");
+  const d=document.createElement("div");
+  d.className="msg "+(who==="you"?"you":"ai");
   d.textContent=(who==="you"?"オーナー：":"AI：")+text;
   document.querySelector("#log").appendChild(d);
   document.querySelector("#log").scrollTop=99999;
 }
+
 function localReply(t){
   const x=t.toLowerCase();
-  if(x.includes("おはよう")) return "おはようございます、オーナー。今日は何から始めましょうか。";
-  if(x.includes("疲れ")||x.includes("つかれ")) return "少し休むのも悪くありません。私はここにいます。";
-  if(x.includes("ff14")) return "FF14ですね。今日は何を進める予定ですか。";
-  if(x.includes("tft")) return "TFTですか。序盤の引きと、その場での判断について話しましょうか。";
-  return "……受け取りました、オーナー。まだ試作段階ですが、これから私の会話能力を接続できます。";
+  if(x.includes("おはよう"))
+    return "おはようございます、オーナー。今日は何から始めましょうか。";
+  if(x.includes("疲れ")||x.includes("つかれ"))
+    return "少し休むのも悪くありません。私はここにいます。";
+  if(x.includes("ff14"))
+    return "FF14ですね。今日は何を進める予定ですか。";
+  if(x.includes("tft"))
+    return "TFTですか。序盤の引きと、その場での判断について話しましょうか。";
+  return "……受け取りました、オーナー。これから私の会話能力をさらに接続できます。";
 }
+
 function send(){
-  const input=document.querySelector("#input"); const t=input.value.trim(); if(!t)return;
-  addMsg("you",t); input.value="";
-  setTimeout(()=>{const r=localReply(t); addMsg("ai",r); speak(r); targetY=.06; setTimeout(()=>targetY=0,700)},250);
+  const input=document.querySelector("#input");
+  const t=input.value.trim();
+  if(!t)return;
+  addMsg("you",t);
+  input.value="";
+  setTimeout(()=>{
+    const r=localReply(t);
+    addMsg("ai",r);
+    speak(r);
+    targetY=.06;
+    setTimeout(()=>targetY=0,700);
+  },250);
 }
+
 document.querySelector("#send").onclick=send;
-document.querySelector("#input").addEventListener("keydown",e=>{if(e.key==="Enter")send()});
+document.querySelector("#input").addEventListener("keydown",e=>{
+  if(e.key==="Enter")send();
+});
 
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(SR){
-  const rec=new SR(); rec.lang="ja-JP"; rec.interimResults=false;
+  const rec=new SR();
+  rec.lang="ja-JP";
+  rec.interimResults=false;
   document.querySelector("#mic").onclick=()=>rec.start();
-  rec.onresult=e=>{document.querySelector("#input").value=e.results[0][0].transcript;send()};
-}else document.querySelector("#mic").disabled=true;
+  rec.onresult=e=>{
+    document.querySelector("#input").value=e.results[0][0].transcript;
+    send();
+  };
+}else{
+  document.querySelector("#mic").disabled=true;
+}
 
-addMsg("ai","……起動しました、オーナー。試作版です。");
+addMsg("ai","……起動しました、オーナー。ここにいます。");
+
 function animate(t){
   requestAnimationFrame(animate);
   const time=t*.001;
-  avatar.rotation.y += (Math.sin(time*.55)*.06-avatar.rotation.y)*.04;
-  avatar.position.y += (targetY+Math.sin(time*1.2)*.018-avatar.position.y)*.06;
-  const talkingNow=talking?Math.abs(Math.sin(time*14)):.0;
+
+  avatar.rotation.y +=
+    (Math.sin(time*.55)*.055-avatar.rotation.y)*.035;
+  avatar.position.y +=
+    (targetY+Math.sin(time*1.2)*.018-avatar.position.y)*.06;
+
+  const talkingNow=talking?Math.abs(Math.sin(time*14)):0;
   torso.scale.y=1+talkingNow*.012;
+
+  particles.rotation.y=time*.08;
+  particles.children.forEach((p,i)=>{
+    p.position.y += Math.sin(time*.8+i)*.0008;
+  });
+
   renderer.render(scene,camera);
 }
 animate(0);
+
 window.addEventListener("resize",()=>{
-  camera.aspect=stage.clientWidth/stage.clientHeight; camera.updateProjectionMatrix();
+  camera.aspect=stage.clientWidth/stage.clientHeight;
+  camera.updateProjectionMatrix();
   renderer.setSize(stage.clientWidth,stage.clientHeight);
 });
 </script>
-<script>if("serviceWorker" in navigator){navigator.serviceWorker.register("sw.js").catch(()=>{});}</script></body>
+<script>
+if("serviceWorker" in navigator){
+  navigator.serviceWorker.register("sw.js").catch(()=>{});
+}
+</script>
+</body>
 </html>
