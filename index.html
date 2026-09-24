@@ -1,49 +1,62 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI Companion 3D</title>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>3D表示テスト</title>
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#071018;color:#dff7ff;font-family:system-ui,sans-serif}
-#app{height:100%;display:flex;flex-direction:column}#view{flex:1;position:relative}
-canvas{display:block;width:100%;height:100%}.ui{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px}
-input{flex:1;padding:13px;border-radius:18px;border:1px solid #2d6170;background:#0b1820;color:#fff;font-size:16px}
-button{padding:12px 16px;border:0;border-radius:18px;background:#5ed8ef;color:#061018;font-weight:700}
-#reply{position:absolute;left:14px;right:14px;top:14px;padding:10px 13px;border-radius:14px;background:#071820cc;border:1px solid #285461;backdrop-filter:blur(8px)}
-.small{font-size:12px;opacity:.7;margin-top:3px}
-</style></head><body>
-<div id="diagnostic" style="position:fixed;left:10px;right:10px;top:10px;z-index:9999;padding:12px;border-radius:10px;background:rgba(0,0,0,.82);color:#dff;font:14px/1.45 sans-serif;white-space:pre-wrap">3Dモデルを確認しています…</div>
-<script>
-window.addEventListener('error', function(e) {
- const d=document.getElementById('diagnostic'); if(d) d.textContent='JavaScriptエラー: '+(e.message||'不明なエラー');
-});
-window.addEventListener('unhandledrejection', function(e) {
- const d=document.getElementById('diagnostic'); if(d) d.textContent='読み込みエラー: '+(e.reason?.message||e.reason||'不明なエラー');
-});
-setTimeout(function(){
- const d=document.getElementById('diagnostic'); if(!d) return;
- if(document.querySelector('canvas')) d.textContent='3D表示領域を確認しました。GLB読み込みを確認中…';
- else d.textContent='3Dモデルが表示されていません。GLBまたはThree.jsの読み込みを確認してください。';
-},3000);
-</script>
-<div id="app"><div id="view"><div id="reply">接続準備中…<div class="small">実体メッシュの3Dモデル</div></div>
-<div class="ui"><input id="msg" placeholder="話しかけてください"><button id="send">送信</button></div></div></div>
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#081018;color:#dff;font-family:sans-serif}
+#status{position:fixed;z-index:10;left:10px;right:10px;top:10px;padding:12px;background:rgba(0,0,0,.8);border-radius:10px;white-space:pre-wrap}
+canvas{display:block;width:100%;height:100%}
+</style>
+</head>
+<body>
+<div id="status">Three.jsを起動しています…</div>
 <script type="module">
-import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
-const view=document.querySelector('#view'),reply=document.querySelector('#reply'),input=document.querySelector('#msg');
-const scene=new THREE.Scene();scene.background=new THREE.Color(0x071018);
-const camera=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,.1,100);camera.position.set(0,0.25,5.2);camera.lookAt(0,0,1.55);
-const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;view.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xbfeeff,0x17222a,2.0));
-const key=new THREE.DirectionalLight(0xffffff,2.4);key.position.set(2,3,4);scene.add(key);
-const rim=new THREE.PointLight(0x55dfff,18,8);rim.position.set(-2,1,2.5);scene.add(rim);
-let model=null;
-const loader=new GLTFLoader(); loader.load('./ai_companion_real3d_v1.glb',g=>{
- model=g.scene; model.position.y=-.55; model.scale.setScalar(1.15); scene.add(model);
- reply.innerHTML='こんにちは、オーナー。<div class="small">3Dメッシュモデルを読み込みました</div>';
-},undefined,e=>{reply.textContent='3Dモデルの読み込みに失敗しました。';console.error(e)});
-function say(t){reply.innerHTML=t+'<div class="small">ローカル応答</div>'; if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';u.rate=.95;speechSynthesis.speak(u)}}
-function send(){const t=input.value.trim();if(!t)return;input.value=''; if(t.includes('こんにちは')||t.includes('おはよう'))say('こんにちは。今日も静かに、進めていきましょう。');else if(t.includes('名前'))say('私はAIコンパニオンです。');else say('受け取りました。今はローカル応答ですが、次は本物のAI接続を追加できます。');}
-document.querySelector('#send').onclick=send;input.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
-addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
-const clock=new THREE.Clock();function loop(){requestAnimationFrame(loop);const t=clock.getElapsedTime();if(model){model.rotation.y=Math.sin(t*.25)*.08;model.position.y=-.55+Math.sin(t*1.2)*.012;}renderer.render(scene,camera)}loop();
-</script></body></html>
+const status=document.getElementById('status');
+function show(s){status.textContent=s;}
+
+try {
+  const THREE = await import('https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js');
+  show('Three.js 読み込み成功。3D空間を作成しています…');
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x081018);
+
+  const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 100);
+  camera.position.set(0, 1.2, 5);
+
+  const renderer = new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+  renderer.setSize(innerWidth,innerHeight);
+  document.body.appendChild(renderer.domElement);
+
+  const light = new THREE.HemisphereLight(0xffffff,0x204060,2);
+  scene.add(light);
+
+  const geometry = new THREE.SphereGeometry(0.8,32,32);
+  const material = new THREE.MeshStandardMaterial({color:0x9fdcff});
+  const mesh = new THREE.Mesh(geometry,material);
+  mesh.position.y=1.2;
+  scene.add(mesh);
+
+  show('成功。\nThree.jsとWebGLは正常です。\n中央に3Dモデルのテスト球が表示されます。');
+
+  function animate(){
+    mesh.rotation.y += 0.01;
+    renderer.render(scene,camera);
+    requestAnimationFrame(animate);
+  }
+  animate();
+
+  addEventListener('resize',()=>{
+    camera.aspect=innerWidth/innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth,innerHeight);
+  });
+} catch(e) {
+  show('Three.js / WebGL エラー:\n' + (e?.message || e));
+}
+</script>
+</body>
+</html>
