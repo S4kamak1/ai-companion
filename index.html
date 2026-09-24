@@ -1,32 +1,34 @@
 <!doctype html>
-<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI Companion</title>
-<style>html,body{margin:0;height:100%;overflow:hidden;background:#07101c;color:white;font-family:system-ui}#stage{height:100%;position:relative}canvas{display:block;width:100%;height:100%}#chat{position:absolute;bottom:12px;left:12px;right:12px;display:flex;gap:8px}input,button{border:1px solid #45677f;border-radius:18px;background:#0b1929e8;color:white;padding:11px}input{flex:1}</style></head>
-<body><div id="stage"><div id="chat"><input id="input" placeholder="話しかけてください"><button id="send">送信</button></div></div>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Companion 3D</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#071018;color:#dff7ff;font-family:system-ui,sans-serif}
+#app{height:100%;display:flex;flex-direction:column}#view{flex:1;position:relative}
+canvas{display:block;width:100%;height:100%}.ui{position:absolute;left:12px;right:12px;bottom:12px;display:flex;gap:8px}
+input{flex:1;padding:13px;border-radius:18px;border:1px solid #2d6170;background:#0b1820;color:#fff;font-size:16px}
+button{padding:12px 16px;border:0;border-radius:18px;background:#5ed8ef;color:#061018;font-weight:700}
+#reply{position:absolute;left:14px;right:14px;top:14px;padding:10px 13px;border-radius:14px;background:#071820cc;border:1px solid #285461;backdrop-filter:blur(8px)}
+.small{font-size:12px;opacity:.7;margin-top:3px}
+</style></head><body><div id="app"><div id="view"><div id="reply">接続準備中…<div class="small">実体メッシュの3Dモデル</div></div>
+<div class="ui"><input id="msg" placeholder="話しかけてください"><button id="send">送信</button></div></div></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js';
-const stage=document.getElementById('stage'),scene=new THREE.Scene();
-scene.background=new THREE.Color(0x07101c);
-const camera=new THREE.PerspectiveCamera(35,innerWidth/innerHeight,.1,100);camera.position.set(0,1.4,5);
-const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setSize(innerWidth,innerHeight);renderer.setPixelRatio(Math.min(devicePixelRatio,2));stage.prepend(renderer.domElement);
-scene.add(new THREE.HemisphereLight(0xccefff,0x182238,2.2));
-const l=new THREE.DirectionalLight(0xffffff,3);l.position.set(3,5,4);scene.add(l);
-const root=new THREE.Group();scene.add(root);
-const skin=new THREE.MeshStandardMaterial({color:0xf1d8cf,roughness:.7}), hair=new THREE.MeshStandardMaterial({color:0xdce8f0,roughness:.45}), suit=new THREE.MeshStandardMaterial({color:0xe7edf2,roughness:.55}), dark=new THREE.MeshStandardMaterial({color:0x172637}), cyan=new THREE.MeshStandardMaterial({color:0x72eaff,emissive:0x0b647a,emissiveIntensity:2}), eye=new THREE.MeshStandardMaterial({color:0xa8f7ff,emissive:0x2bd8ee,emissiveIntensity:3});
-function add(g,m,p,s=[1,1,1]){let o=new THREE.Mesh(g,m);o.position.set(...p);o.scale.set(...s);root.add(o);return o}
-add(new THREE.SphereGeometry(.48,32,24),skin,[0,2.15,0],[.94,1.06,.86]);
-add(new THREE.SphereGeometry(.53,32,20),hair,[0,2.4,-.02],[1.03,.72,.92]);
-for(let x of [-.18,.18])add(new THREE.SphereGeometry(.07,20,16),eye,[x,2.18,.42],[1,1,.35]);
-for(let x of [-.38,-.19,0,.19,.38]){let o=add(new THREE.ConeGeometry(.13,.7,20),hair,[x,2.22,.28]);o.rotation.z=-x*.3}
-for(let x of [-.44,.44])add(new THREE.CylinderGeometry(.1,.065,.95,20),hair,[x,1.98,0]);
-add(new THREE.CylinderGeometry(.16,.18,.22,24),skin,[0,1.53,0]);
-add(new THREE.CylinderGeometry(.47,.58,1.2,32),suit,[0,.98,0]);
-add(new THREE.BoxGeometry(.9,.14,.62),cyan,[0,1.34,.3],[1,.55,.22]);
-for(let x of [-.68,.68]){let a=add(new THREE.CapsuleGeometry(.13,.7,8,16),suit,[x,.98,0]);a.rotation.z=x*.12;add(new THREE.SphereGeometry(.14,20,16),skin,[x,.51,0])}
-for(let x of [-.22,.22]){add(new THREE.CapsuleGeometry(.14,.72,8,16),dark,[x,-.03,0]);add(new THREE.BoxGeometry(.3,.18,.58),suit,[x,-.48,.08])}
-for(let x of [-.32,0,.32]){let p=add(new THREE.BoxGeometry(.27,.9,.12),dark,[x,.48,.18]);p.rotation.y=x*.25}
-let ring=new THREE.Mesh(new THREE.TorusGeometry(1.15,.012,8,96),cyan);ring.position.y=1.2;ring.rotation.x=Math.PI/2;scene.add(ring);
-function send(){let v=input.value.trim();if(!v)return;let t=/こんにちは|こんばんは|やあ/.test(v)?'こんにちは、オーナー。接続は正常です。':'了解しました、オーナー。少し考えてみます。';input.value='';let u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';speechSynthesis.cancel();speechSynthesis.speak(u)}
-document.getElementById('send').onclick=send;document.getElementById('input').addEventListener('keydown',e=>{if(e.key==='Enter')send()});
-function loop(t){root.position.y=Math.sin(t*.0018)*.035;root.rotation.y=Math.sin(t*.0007)*.04;ring.rotation.z=t*.0002;renderer.render(scene,camera);requestAnimationFrame(loop)}requestAnimationFrame(loop);
-onresize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
+import {GLTFLoader} from 'https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/loaders/GLTFLoader.js';
+const view=document.querySelector('#view'),reply=document.querySelector('#reply'),input=document.querySelector('#msg');
+const scene=new THREE.Scene();scene.background=new THREE.Color(0x071018);
+const camera=new THREE.PerspectiveCamera(30,innerWidth/innerHeight,.1,100);camera.position.set(0,0.25,5.2);camera.lookAt(0,0,1.55);
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;view.prepend(renderer.domElement);
+scene.add(new THREE.HemisphereLight(0xbfeeff,0x17222a,2.0));
+const key=new THREE.DirectionalLight(0xffffff,2.4);key.position.set(2,3,4);scene.add(key);
+const rim=new THREE.PointLight(0x55dfff,18,8);rim.position.set(-2,1,2.5);scene.add(rim);
+let model=null;
+const loader=new GLTFLoader(); loader.load('./ai_companion_real3d_v1.glb',g=>{
+ model=g.scene; model.position.y=-.55; model.scale.setScalar(1.15); scene.add(model);
+ reply.innerHTML='こんにちは、オーナー。<div class="small">3Dメッシュモデルを読み込みました</div>';
+},undefined,e=>{reply.textContent='3Dモデルの読み込みに失敗しました。';console.error(e)});
+function say(t){reply.innerHTML=t+'<div class="small">ローカル応答</div>'; if('speechSynthesis'in window){speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='ja-JP';u.rate=.95;speechSynthesis.speak(u)}}
+function send(){const t=input.value.trim();if(!t)return;input.value=''; if(t.includes('こんにちは')||t.includes('おはよう'))say('こんにちは。今日も静かに、進めていきましょう。');else if(t.includes('名前'))say('私はAIコンパニオンです。');else say('受け取りました。今はローカル応答ですが、次は本物のAI接続を追加できます。');}
+document.querySelector('#send').onclick=send;input.addEventListener('keydown',e=>{if(e.key==='Enter')send()});
+addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});
+const clock=new THREE.Clock();function loop(){requestAnimationFrame(loop);const t=clock.getElapsedTime();if(model){model.rotation.y=Math.sin(t*.25)*.08;model.position.y=-.55+Math.sin(t*1.2)*.012;}renderer.render(scene,camera)}loop();
 </script></body></html>
