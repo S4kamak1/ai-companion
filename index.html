@@ -2,117 +2,127 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GLB診断 v2</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Companion 3D</title>
 <style>
-html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#081018;color:#dff;font-family:sans-serif}
-#status{position:fixed;z-index:10;left:10px;right:10px;top:10px;padding:12px;background:rgba(0,0,0,.84);border-radius:10px;white-space:pre-wrap;line-height:1.5}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#081018;color:#e8f8ff;font-family:system-ui,sans-serif}
 canvas{display:block;width:100%;height:100%}
+#status{position:fixed;z-index:10;top:10px;left:10px;right:10px;padding:9px 12px;border-radius:12px;background:rgba(5,12,20,.72);backdrop-filter:blur(8px);font-size:13px}
+#chat{position:fixed;z-index:11;left:10px;right:10px;bottom:12px;display:flex;gap:8px}
+#input{flex:1;min-width:0;border:1px solid rgba(150,220,255,.35);border-radius:14px;padding:12px;background:rgba(5,12,20,.82);color:white;font-size:16px;outline:none}
+#send{border:0;border-radius:14px;padding:0 16px;background:#75dfff;color:#06202a;font-weight:700}
 </style>
 </head>
 <body>
-<div id="status">診断 v2を開始しています…</div>
+<div id="status">3Dモデルを読み込んでいます…</div>
+<div id="chat"><input id="input" placeholder="話しかけてください"><button id="send">送信</button></div>
+
 <script type="importmap">
-{
-  "imports": {
-    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
-    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
-  }
-}
+{"imports":{
+"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+"three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+}}
 </script>
+
 <script type="module">
 const status=document.getElementById('status');
+const input=document.getElementById('input');
+const send=document.getElementById('send');
 const show=s=>status.textContent=s;
 
 try{
-  const THREE=await import('three');
-  const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
+ const THREE=await import('three');
+ const {GLTFLoader}=await import('three/addons/loaders/GLTFLoader.js');
 
-  const scene=new THREE.Scene();
-  scene.background=new THREE.Color(0x081018);
+ const scene=new THREE.Scene();
+ scene.background=new THREE.Color(0x081018);
+ scene.fog=new THREE.Fog(0x081018,7,18);
 
-  const camera=new THREE.PerspectiveCamera(45,innerWidth/innerHeight,.01,1000);
-  camera.position.set(0,1.5,5);
+ const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.01,1000);
+ camera.position.set(0,1.35,4.8);
+ camera.lookAt(0,1.25,0);
 
-  const renderer=new THREE.WebGLRenderer({antialias:true});
-  renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-  renderer.setSize(innerWidth,innerHeight);
-  document.body.appendChild(renderer.domElement);
+ const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false});
+ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+ renderer.setSize(innerWidth,innerHeight);
+ renderer.outputColorSpace=THREE.SRGBColorSpace;
+ document.body.appendChild(renderer.domElement);
 
-  scene.add(new THREE.HemisphereLight(0xffffff,0x204060,2));
-  const light=new THREE.DirectionalLight(0xffffff,2);
-  light.position.set(2,4,5);
-  scene.add(light);
+ const hemi=new THREE.HemisphereLight(0xe8f8ff,0x183048,2.1);
+ scene.add(hemi);
+ const key=new THREE.DirectionalLight(0xffffff,2.2);
+ key.position.set(2.5,4,4);
+ scene.add(key);
+ const rim=new THREE.PointLight(0x65ddff,2.5,8);
+ rim.position.set(-2,2.5,1);
+ scene.add(rim);
 
-  const test=new THREE.Mesh(
-    new THREE.SphereGeometry(.45,24,24),
-    new THREE.MeshStandardMaterial({color:0x4fdcff})
-  );
-  test.position.set(0,.8,0);
-  scene.add(test);
+ const loader=new GLTFLoader();
+ loader.load('./ai_companion_real3d_v1.glb',gltf=>{
+   const model=gltf.scene;
+   scene.add(model);
 
-  show('Three.js：OK\nGLTFLoader：OK\nGLBファイルを取得しています…');
+   const box=new THREE.Box3().setFromObject(model);
+   const size=box.getSize(new THREE.Vector3());
+   const center=box.getCenter(new THREE.Vector3());
+   model.position.sub(center);
 
-  const loader=new GLTFLoader();
-  loader.load(
-    './ai_companion_real3d_v1.glb',
-    gltf=>{
-      scene.remove(test);
-      const model=gltf.scene;
-      scene.add(model);
+   const maxSize=Math.max(size.x,size.y,size.z);
+   if(maxSize>0) model.scale.setScalar(2.7/maxSize);
 
-      const box=new THREE.Box3().setFromObject(model);
-      const size=box.getSize(new THREE.Vector3());
-      const center=box.getCenter(new THREE.Vector3());
-      model.position.sub(center);
+   // 再計算して足元を画面中央付近へ
+   const box2=new THREE.Box3().setFromObject(model);
+   const center2=box2.getCenter(new THREE.Vector3());
+   model.position.y-=center2.y-0.15;
 
-      const maxSize=Math.max(size.x,size.y,size.z);
-      if(maxSize>0) model.scale.setScalar(2.5/maxSize);
+   let meshes=0;
+   model.traverse(o=>{
+     if(o.isMesh){
+       meshes++;
+       o.castShadow=false;
+       o.frustumCulled=false;
+     }
+   });
 
-      let meshCount=0;
-      model.traverse(o=>{if(o.isMesh)meshCount++;});
+   show('接続完了。\n実体メッシュ3Dモデル：表示中\nメッシュ数：'+meshes);
+   startChat();
 
-      show(
-        'GLB読み込み成功。\n'+
-        '実体メッシュ数：'+meshCount+'\n'+
-        '画面中央にモデルを表示しています。'
-      );
+   let t=0;
+   function animate(){
+     t+=0.016;
+     // ごく小さな待機モーション
+     model.position.x=Math.sin(t*.7)*0.012;
+     model.rotation.y=Math.sin(t*.35)*0.025;
+     model.position.y+=Math.sin(t*1.4)*0.0007;
+     renderer.render(scene,camera);
+     requestAnimationFrame(animate);
+   }
+   animate();
+ },xhr=>{
+   const p=xhr.total?Math.round(xhr.loaded/xhr.total*100)+'%':xhr.loaded+' bytes';
+   show('3Dモデルを読み込み中… '+p);
+ },err=>{
+   show('3Dモデルの読み込みに失敗しました。\n'+(err?.message||String(err)));
+ });
 
-      function animate(){
-        model.rotation.y+=0.003;
-        renderer.render(scene,camera);
-        requestAnimationFrame(animate);
-      }
-      animate();
-    },
-    xhr=>{
-      const p=xhr.total ? Math.round(xhr.loaded/xhr.total*100)+'%' : xhr.loaded+' bytes';
-      show('GLBを読み込み中… '+p);
-    },
-    err=>{
-      show(
-        'GLB読み込み失敗。\n\n'+
-        'Three.js：OK\n'+
-        'GLTFLoader：OK\n'+
-        '対象：ai_companion_real3d_v1.glb\n\n'+
-        'エラー：'+(err?.message||String(err))
-      );
-      function animate(){
-        test.rotation.y+=0.01;
-        renderer.render(scene,camera);
-        requestAnimationFrame(animate);
-      }
-      animate();
-    }
-  );
+ function startChat(){
+   function reply(){
+     const text=input.value.trim();
+     if(!text)return;
+     show('受信：'+text+'\n\n現在は3D表示確認版です。AI応答は次の段階で接続します。');
+     input.value='';
+   }
+   send.onclick=reply;
+   input.addEventListener('keydown',e=>{if(e.key==='Enter')reply()});
+ }
 
-  addEventListener('resize',()=>{
-    camera.aspect=innerWidth/innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(innerWidth,innerHeight);
-  });
+ addEventListener('resize',()=>{
+   camera.aspect=innerWidth/innerHeight;
+   camera.updateProjectionMatrix();
+   renderer.setSize(innerWidth,innerHeight);
+ });
 }catch(e){
-  show('診断プログラム自体のエラー：\n'+(e?.message||String(e)));
+ show('起動エラー：\n'+(e?.message||String(e)));
 }
 </script>
 </body>
