@@ -1,4 +1,4 @@
-const CACHE='ai-companion-pwa-v13';
+const CACHE='ai-companion-pwa-v14';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./icon.svg','./apeiria_front_2p5d_upright.glb'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
 self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));
