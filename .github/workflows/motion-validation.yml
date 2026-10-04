@@ -71,6 +71,10 @@ jobs:
                 };
               });
               await page.waitForFunction(() => Boolean(window.__apeiriaBlinkDiagnostics?.().textureReady), null, { timeout: 120000 });
+              const autoBefore = await page.evaluate(() => window.__apeiriaBlinkDiagnostics().autoCount || 0);
+              await page.waitForFunction(before => (window.__apeiriaBlinkDiagnostics?.().autoCount || 0) > before, autoBefore, { timeout: 10000 });
+              const autoBlink = await page.evaluate(() => window.__apeiriaBlinkDiagnostics());
+              if ((autoBlink.autoCount || 0) <= autoBefore || !(autoBlink.lastBlinkAt > 0)) throw new Error("Autonomous blink did not trigger: " + JSON.stringify(autoBlink));
               const blink = await page.evaluate(() => window.__apeiriaBlinkTest(1));
               const expectedBlink = { l: { x: -.067, y: .733, w: .105, h: .060 }, r: { x: .036, y: .733, w: .095, h: .058 } };
               const sameAnchor = (a, b) => ['x', 'y', 'w', 'h'].every(k => Math.abs(a[k] - b[k]) < .001);
@@ -100,8 +104,8 @@ jobs:
               }));
               await motion.screenshot({ path: "artifacts/motion-test.png" });
               if (motionResult.status !== "PASS") throw new Error("Motion test failed: " + JSON.stringify(motionResult));
-              fs.writeFileSync("artifacts/motion-report.json", JSON.stringify({ webgl, blink, motion: motionResult }, null, 2));
-              console.log(JSON.stringify({ webgl, blink, motion: motionResult }, null, 2));
+              fs.writeFileSync("artifacts/motion-report.json", JSON.stringify({ webgl, autoBlink, blink, motion: motionResult }, null, 2));
+              console.log(JSON.stringify({ webgl, autoBlink, blink, motion: motionResult }, null, 2));
             } finally {
               await browser.close();
             }
