@@ -5,7 +5,7 @@
 const c=document.querySelector('#c'),x=c.getContext('2d'),b=document.createElement('canvas'),y=b.getContext('2d'),S=document.querySelector('#s'),R=document.querySelector('#r'),T=document.querySelector('#t'),B=document.querySelector('#b'),M=document.querySelector('#m'),P=384,expected={l:[-.020,.724,.050,.030],r:[.0495,.721,.065,.029]},g={l:[-.020,.724,.050,.030],r:[.0495,.721,.065,.029],m:[-.014,.671,.016,.007]},p=(a,z)=>[(a+2/3)*P,(1-z)*P];b.width=512;b.height=768;let ready=false,img,raf=0;
 function color(a,z){const[u,v]=p(a,z),d=y.getImageData(u|0,v|0,1,1).data;return'rgb('+d[0]+','+d[1]+','+d[2]+')'}
 function ellipse(a,k,col,alpha){const[u,v]=p(a[0],a[1]);x.save();x.globalAlpha=alpha;x.fillStyle=col;x.beginPath();x.ellipse(u,v,a[2]*P*k/2,a[3]*P*k/2,0,0,7);x.fill();x.restore()}
-function draw(blink=0,mouth=0){if(!ready)return;x.clearRect(0,0,512,768);x.drawImage(b,0,0);if(blink){ellipse(g.l,.12+.88*blink,color(g.l[0],g.l[1]+.02),.97);ellipse(g.r,.12+.88*blink,color(g.r[0],g.r[1]+.02),.97)}if(mouth)ellipse(g.m,1,'#b8758b',.24+.16*mouth)}
+function draw(blink=0,mouth=0){if(!ready)return;x.clearRect(0,0,512,768);x.drawImage(b,0,0);if(blink){ellipse(g.l,1-.88*blink,color(g.l[0],g.l[1]+.02),.97);ellipse(g.r,1-.88*blink,color(g.r[0],g.r[1]+.02),.97)}if(mouth)ellipse(g.m,1,'#b8758b',.24+.16*mouth)}
 function data(){return x.getImageData(0,0,512,768).data}
 function eye(u,v){return[g.l,g.r].some(a=>{const[cx,cy]=p(a[0],a[1]),rx=a[2]*P/2+3,ry=a[3]*P/2+3;return((u-cx)/rx)**2+((v-cy)/ry)**2<1})}
 function mouth(u,v){const[cx,cy]=p(g.m[0],g.m[1]),rx=g.m[2]*P/2+4,ry=g.m[3]*P+4;return((u-cx)/rx)**2+((v-cy)/ry)**2<1}
