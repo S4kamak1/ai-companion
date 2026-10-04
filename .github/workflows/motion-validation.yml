@@ -1,5 +1,6 @@
 name: Motion validation
 
+
 on:
   push:
     branches: [main]
@@ -9,6 +10,7 @@ on:
       - "apeiria_front_2p5d_upright.glb"
       - ".github/workflows/motion-validation.yml"
   workflow_dispatch:
+
 
 jobs:
   webgl-motion:
@@ -64,6 +66,17 @@ jobs:
                   status: document.querySelector("#stateText")?.textContent || ""
                 };
               });
+              await page.waitForFunction(() => Boolean(window.__apeiriaBlinkDiagnostics?.().textureReady), null, { timeout: 120000 });
+              const blink = await page.evaluate(() => window.__apeiriaBlinkTest(1));
+              const expectedBlink = { l: { x: -.020, y: .724, w: .050, h: .030 }, r: { x: .0495, y: .721, w: .065, h: .029 } };
+              const sameAnchor = (a, b) => ['x', 'y', 'w', 'h'].every(k => Math.abs(a[k] - b[k]) < .001);
+              if (!blink.textureReady || blink.textureTargets < 1) throw new Error('Blink texture mask was not initialized: ' + JSON.stringify(blink));
+              for (const key of ['l', 'r']) {
+                const stat = blink.stats?.eyes?.[key];
+                if (!sameAnchor(blink.config?.[key], expectedBlink[key])) throw new Error('Blink anchor mismatch for ' + key + ': ' + JSON.stringify(blink.config?.[key]));
+                if (!stat || stat.changed < 1 || !stat.centroid || stat.centroidError > 6) throw new Error('Blink render mismatch for ' + key + ': ' + JSON.stringify(stat));
+              }
+              await page.evaluate(() => window.__apeiriaBlinkTest(0));
               await page.screenshot({ path: "artifacts/webgl-index.png" });
               if (!webgl.canvas || !webgl.webgl) throw new Error("WebGL renderer was not created: " + JSON.stringify(webgl));
               if (!/正面2.5Dモデル表示中/.test(webgl.status)) throw new Error("Model did not reach WebGL display state: " + webgl.status);
@@ -80,8 +93,8 @@ jobs:
               }));
               await motion.screenshot({ path: "artifacts/motion-test.png" });
               if (motionResult.status !== "PASS") throw new Error("Motion test failed: " + JSON.stringify(motionResult));
-              fs.writeFileSync("artifacts/motion-report.json", JSON.stringify({ webgl, motion: motionResult }, null, 2));
-              console.log(JSON.stringify({ webgl, motion: motionResult }, null, 2));
+              fs.writeFileSync("artifacts/motion-report.json", JSON.stringify({ webgl, blink, motion: motionResult }, null, 2));
+              console.log(JSON.stringify({ webgl, blink, motion: motionResult }, null, 2));
             } finally {
               await browser.close();
             }
