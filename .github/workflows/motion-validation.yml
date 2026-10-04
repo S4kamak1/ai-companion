@@ -1,6 +1,8 @@
 name: Motion validation
 
 
+
+
 on:
   push:
     branches: [main]
@@ -10,6 +12,8 @@ on:
       - "apeiria_front_2p5d_upright.glb"
       - ".github/workflows/motion-validation.yml"
   workflow_dispatch:
+
+
 
 
 jobs:
@@ -88,7 +92,7 @@ jobs:
               await motion.getByRole("button", { name: "Run test" }).click();
               await motion.waitForFunction(() => Boolean(window.__motionTestResult), null, { timeout: 30000 });
               const motionResult = await motion.evaluate(() => ({
-                status: document.body.innerText.includes("PASS: motion regions isolated") ? "PASS" : "FAIL",
+                status: document.body.innerText.includes("PASS: left/right motion regions isolated") ? "PASS" : "FAIL",
                 result: window.__motionTestResult
               }));
               await motion.screenshot({ path: "artifacts/motion-test.png" });
