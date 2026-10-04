@@ -72,14 +72,15 @@ jobs:
               });
               await page.waitForFunction(() => Boolean(window.__apeiriaBlinkDiagnostics?.().textureReady), null, { timeout: 120000 });
               const blink = await page.evaluate(() => window.__apeiriaBlinkTest(1));
-              const expectedBlink = { l: { x: -.020, y: .724, w: .050, h: .030 }, r: { x: .0495, y: .721, w: .065, h: .029 } };
+              const expectedBlink = { l: { x: -.067, y: .733, w: .105, h: .060 }, r: { x: .036, y: .733, w: .095, h: .058 } };
               const sameAnchor = (a, b) => ['x', 'y', 'w', 'h'].every(k => Math.abs(a[k] - b[k]) < .001);
-              if (!blink.textureReady || blink.textureTargets < 1) throw new Error('Blink texture mask was not initialized: ' + JSON.stringify(blink));
-              if (!blink.texture?.width || !blink.texture?.height || blink.texture.height < blink.texture.width * 1.4) throw new Error('Unexpected blink texture dimensions: ' + JSON.stringify(blink.texture));
+              if (!blink.textureReady || blink.textureTargets < 2) throw new Error('Face motion layers were not initialized: ' + JSON.stringify(blink));
+              if (blink.coordinateSystem !== 'model-local') throw new Error('Blink layers are not using model-local coordinates: ' + JSON.stringify(blink));
+              if (!blink.texture?.width || !blink.texture?.height) throw new Error('Face texture metadata is missing: ' + JSON.stringify(blink.texture));
               for (const key of ['l', 'r']) {
                 const stat = blink.stats?.eyes?.[key];
                 if (!sameAnchor(blink.config?.[key], expectedBlink[key])) throw new Error('Blink anchor mismatch for ' + key + ': ' + JSON.stringify(blink.config?.[key]));
-                if (!stat || !stat.expected || stat.expected[1] < blink.texture.height * .7) throw new Error('Blink texture target is outside the face region for ' + key + ': ' + JSON.stringify(stat));
+                if (!stat || !stat.expected || Math.abs(stat.expected[0] - expectedBlink[key].x) > .001 || Math.abs(stat.expected[1] - expectedBlink[key].y) > .001) throw new Error('Blink layer anchor mismatch for ' + key + ': ' + JSON.stringify(stat));
                 if (stat.changed < 1 || !stat.centroid || stat.centroidError > 6) throw new Error('Blink render mismatch for ' + key + ': ' + JSON.stringify(stat));
               }
               await page.evaluate(() => window.__apeiriaBlinkTest(0));
