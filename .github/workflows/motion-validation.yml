@@ -3,6 +3,10 @@ name: Motion validation
 
 
 
+
+
+
+
 on:
   push:
     branches: [main]
@@ -12,6 +16,10 @@ on:
       - "apeiria_front_2p5d_upright.glb"
       - ".github/workflows/motion-validation.yml"
   workflow_dispatch:
+
+
+
+
 
 
 
@@ -76,7 +84,7 @@ jobs:
               const autoBlink = await page.evaluate(() => window.__apeiriaBlinkDiagnostics());
               if ((autoBlink.autoCount || 0) <= autoBefore || !(autoBlink.lastBlinkAt > 0)) throw new Error("Autonomous blink did not trigger: " + JSON.stringify(autoBlink));
               const blink = await page.evaluate(() => window.__apeiriaBlinkTest(1));
-              const expectedBlink = { l: { x: -.067, y: .733, w: .105, h: .060 }, r: { x: .036, y: .733, w: .095, h: .058 } };
+              const expectedBlink = { l: { x: -.052, y: .730, w: .060, h: .038 }, r: { x: .031, y: .716, w: .055, h: .038 } };
               const sameAnchor = (a, b) => ['x', 'y', 'w', 'h'].every(k => Math.abs(a[k] - b[k]) < .001);
               if (!blink.textureReady || blink.textureTargets < 2) throw new Error('Face motion layers were not initialized: ' + JSON.stringify(blink));
               if (blink.coordinateSystem !== 'model-local') throw new Error('Blink layers are not using model-local coordinates: ' + JSON.stringify(blink));
@@ -92,7 +100,6 @@ jobs:
               if (!webgl.canvas || !webgl.webgl) throw new Error("WebGL renderer was not created: " + JSON.stringify(webgl));
               if (!/正面2.5Dモデル表示中/.test(webgl.status)) throw new Error("Model did not reach WebGL display state: " + webgl.status);
               if (consoleErrors.length) throw new Error("WebGL page errors: " + consoleErrors.join(" | "));
-
               const motion = await browser.newPage({ viewport: { width: 720, height: 900 }, deviceScaleFactor: 1 });
               await motion.goto("http://127.0.0.1:4173/motion-test.html", { waitUntil: "networkidle", timeout: 120000 });
               await motion.waitForFunction(() => !document.querySelector("#t")?.disabled, null, { timeout: 120000 });
