@@ -1,0 +1,52 @@
+{
+  "sourceSize": {
+    "width": 560,
+    "height": 700
+  },
+  "faceCrop": {
+    "x": 185,
+    "y": 80,
+    "width": 180,
+    "height": 150,
+    "scale": 5
+  },
+  "diffs": {
+    "left-closed": {
+      "changedPixels": 584,
+      "changedPixelRatio": 0.001489795918367347,
+      "outsideCropPixels": 0,
+      "boundingBox": {
+        "x": 236,
+        "y": 117,
+        "width": 38,
+        "height": 22
+      }
+    },
+    "right-closed": {
+      "changedPixels": 558,
+      "changedPixelRatio": 0.001423469387755102,
+      "outsideCropPixels": 0,
+      "boundingBox": {
+        "x": 276,
+        "y": 118,
+        "width": 35,
+        "height": 21
+      }
+    },
+    "both-closed": {
+      "changedPixels": 1142,
+      "changedPixelRatio": 0.002913265306122449,
+      "outsideCropPixels": 0,
+      "boundingBox": {
+        "x": 236,
+        "y": 117,
+        "width": 75,
+        "height": 22
+      }
+    }
+  },
+  "interpretation": {
+    "outsideCropPixels": "顔アップ範囲の外で変化した画素数。0が理想",
+    "boundingBox": "通常状態との差分範囲（元画像座標）"
+  }
+}
