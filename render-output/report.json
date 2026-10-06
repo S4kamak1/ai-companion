@@ -1,6 +1,6 @@
 {
-  "commit": "fbeb7138427def120c0f09d8a7fac0827f1cffcf",
-  "generatedAt": "2026-10-06T04:09:17.415Z",
+  "commit": "71c4417e8e5ce3ad80a6028ef05484f926a54de0",
+  "generatedAt": "2026-10-06T05:32:37.606Z",
   "webgl": {
     "canvas": true,
     "webgl": true,
@@ -13,20 +13,20 @@
     "textureTargets": 2,
     "progress": 1,
     "autoCount": 1,
-    "lastBlinkAt": 1969.9000000000087,
+    "lastBlinkAt": 1940.8999999999942,
     "coordinateSystem": "model-local",
     "config": {
       "l": {
-        "x": -0.067,
-        "y": 0.733,
-        "w": 0.105,
-        "h": 0.06
+        "x": -0.052,
+        "y": 0.73,
+        "w": 0.06,
+        "h": 0.038
       },
       "r": {
-        "x": 0.036,
-        "y": 0.733,
-        "w": 0.095,
-        "h": 0.058
+        "x": 0.031,
+        "y": 0.716,
+        "w": 0.055,
+        "h": 0.038
       }
     },
     "texture": {
@@ -40,33 +40,33 @@
         "l": {
           "changed": 1,
           "centroid": [
-            -0.067,
-            0.733
+            -0.052,
+            0.73
           ],
           "expected": [
-            -0.067,
-            0.733
+            -0.052,
+            0.73
           ],
           "centroidError": 0,
           "size": [
-            0.105,
-            0.06
+            0.06,
+            0.038
           ]
         },
         "r": {
           "changed": 1,
           "centroid": [
-            0.036,
-            0.733
+            0.031,
+            0.716
           ],
           "expected": [
-            0.036,
-            0.733
+            0.031,
+            0.716
           ],
           "centroidError": 0,
           "size": [
-            0.095,
-            0.058
+            0.055,
+            0.038
           ]
         }
       }
