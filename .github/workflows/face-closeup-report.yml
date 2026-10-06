@@ -1,0 +1,102 @@
+name: Face close-up blink analysis
+on:
+  push:
+    branches: [main]
+    paths:
+      - "render-output/normal-debug.png"
+      - "render-output/left-closed-debug.png"
+      - "render-output/right-closed-debug.png"
+      - "render-output/both-closed-debug.png"
+      - ".github/workflows/face-closeup-report.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Create face close-up and pixel diff
+        run: |
+          python3 -m pip install --user --quiet pillow
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          import json
+
+          root = Path("render-output")
+          crop_x, crop_y, crop_w, crop_h, scale = 185, 80, 180, 150, 5
+          names = ["normal", "left-closed", "right-closed", "both-closed"]
+          images = {name: Image.open(root / f"{name}-debug.png").convert("RGBA") for name in names}
+
+          def face_crop(image):
+              return image.crop((crop_x, crop_y, crop_x + crop_w, crop_y + crop_h)).resize((crop_w * scale, crop_h * scale), Image.Resampling.NEAREST)
+
+          for name, image in images.items():
+              face_crop(image).save(root / f"face-{name}.png")
+
+          base = images["normal"]
+          base_px = base.load()
+          diffs = {}
+          for name in names[1:]:
+              state = images[name]
+              state_px = state.load()
+              highlight = face_crop(base)
+              highlight_px = highlight.load()
+              changed = 0
+              outside = 0
+              min_x, min_y = base.width, base.height
+              max_x, max_y = -1, -1
+              for y in range(base.height):
+                  for x in range(base.width):
+                      delta = sum(abs(base_px[x, y][i] - state_px[x, y][i]) for i in range(3))
+                      if delta <= 24:
+                          continue
+                      changed += 1
+                      min_x, min_y = min(min_x, x), min(min_y, y)
+                      max_x, max_y = max(max_x, x), max(max_y, y)
+                      if not (crop_x <= x < crop_x + crop_w and crop_y <= y < crop_y + crop_h):
+                          outside += 1
+                          continue
+                      for oy in range(scale):
+                          for ox in range(scale):
+                              highlight_px[(x - crop_x) * scale + ox, (y - crop_y) * scale + oy] = (255, 72, 96, 255)
+              highlight.save(root / f"face-diff-{name}.png")
+              diffs[name] = {
+                  "changedPixels": changed,
+                  "changedPixelRatio": changed / (base.width * base.height),
+                  "outsideCropPixels": outside,
+                  "boundingBox": None if max_x < 0 else {"x": min_x, "y": min_y, "width": max_x - min_x + 1, "height": max_y - min_y + 1},
+              }
+
+          report = {
+              "sourceSize": {"width": base.width, "height": base.height},
+              "faceCrop": {"x": crop_x, "y": crop_y, "width": crop_w, "height": crop_h, "scale": scale},
+              "diffs": diffs,
+              "interpretation": {
+                  "outsideCropPixels": "顔アップ範囲の外で変化した画素数。0が理想",
+                  "boundingBox": "通常状態との差分範囲（元画像座標）",
+              },
+          }
+          (root / "blink-analysis.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+          html_path = root / "index.html"
+          html = html_path.read_text(encoding="utf-8")
+          marker = "face-closeup-report"
+          section = """<h2 id="face-closeup-report">顔アップ（同一倍率）</h2><p>同じ画素範囲を5倍に拡大しています。</p><div class="grid"><figure><img src="face-normal.png"><figcaption>通常</figcaption></figure><figure><img src="face-left-closed.png"><figcaption>左目閉じ</figcaption></figure><figure><img src="face-right-closed.png"><figcaption>右目閉じ</figcaption></figure><figure><img src="face-both-closed.png"><figcaption>両目閉じ</figcaption></figure></div><h2>差分マップ</h2><p>通常状態から変化した画素を赤で表示しています。</p><div class="grid"><figure><img src="face-diff-left-closed.png"><figcaption>左目閉じ</figcaption></figure><figure><img src="face-diff-right-closed.png"><figcaption>右目閉じ</figcaption></figure><figure><img src="face-diff-both-closed.png"><figcaption>両目閉じ</figcaption></figure></div><p><a href="blink-analysis.json">差分解析JSON</a></p>"""
+          if marker not in html:
+              html_path.write_text(html.replace("<h2>自動瞬き</h2>", section + "<h2>自動瞬き</h2>"), encoding="utf-8")
+          PY
+      - name: Publish analysis
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f render-output/face-*.png render-output/blink-analysis.json render-output/index.html
+          if git diff --cached --quiet; then
+            echo "No face analysis changes"
+          else
+            git commit -m "Add face close-up blink analysis [skip ci]"
+            git push origin HEAD:main
+          fi
