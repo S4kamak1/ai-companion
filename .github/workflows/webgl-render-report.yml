@@ -128,5 +128,8 @@ jobs:
             echo "No render report changes"
           else
             git commit -m "Update WebGL render report [skip ci]"
+            git fetch origin main
+            git rebase origin/main
             git push origin HEAD:main
           fi
+ 
