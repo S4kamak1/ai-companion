@@ -1,0 +1,132 @@
+name: WebGL render report
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "webgl-blink-calibration.html"
+      - "apeiria_front_2p5d_upright.glb"
+      - ".github/workflows/webgl-render-report.yml"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install browser and video tools
+        run: |
+          npm init -y
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+      - name: Start static server
+        run: |
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/ai-companion-http.log 2>&1 &
+          echo $! > /tmp/ai-companion-http.pid
+      - name: Render actual WebGL frames
+        run: |
+          node <<'NODE'
+          const { chromium } = require("playwright");
+          const fs = require("node:fs");
+          const { execFileSync } = require("node:child_process");
+          const out = "render-output";
+          const frames = out + "/frames";
+          fs.rmSync(out, { recursive: true, force: true });
+          fs.mkdirSync(frames, { recursive: true });
+          (async () => {
+          const pageErrors = [];
+          const browser = await chromium.launch({
+            headless: true,
+            args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"]
+          });
+          try {
+            const page = await browser.newPage({ viewport: { width: 860, height: 980 }, deviceScaleFactor: 1 });
+            page.on("pageerror", error => pageErrors.push("pageerror: " + error.message));
+            await page.goto("http://127.0.0.1:4173/webgl-blink-calibration.html", { waitUntil: "networkidle", timeout: 120000 });
+            await page.waitForFunction(() => {
+              const button = document.querySelector("#normal");
+              return button && !button.disabled;
+            }, null, { timeout: 120000 });
+            const webgl = await page.evaluate(() => {
+              const canvas = document.querySelector("#gl");
+              const gl = canvas && (canvas.getContext("webgl2") || canvas.getContext("webgl"));
+              return {
+                canvas: Boolean(canvas),
+                webgl: Boolean(gl),
+                renderer: gl ? gl.getParameter(gl.RENDERER) : "none",
+                status: document.querySelector("#status")?.textContent || ""
+              };
+            });
+            if (!webgl.webgl || !/WebGL表示準備完了/.test(webgl.status)) throw new Error("WebGL renderer was not ready: " + JSON.stringify(webgl));
+            const appPage = await browser.newPage({ viewport: { width: 860, height: 980 }, deviceScaleFactor: 1 });
+            await appPage.goto("http://127.0.0.1:4173/index.html", { waitUntil: "networkidle", timeout: 120000 });
+            await appPage.waitForFunction(() => /正面2.5Dモデル表示中/.test(document.querySelector("#stateText")?.textContent || ""), null, { timeout: 120000 });
+            const appStage = appPage.locator("#stage");
+            await appPage.evaluate(() => window.__apeiriaBlinkTest(0));
+            await appPage.waitForTimeout(240);
+            await appStage.screenshot({ path: out + "/app-normal.png" });
+            await appPage.evaluate(() => window.__apeiriaBlinkTest(1));
+            await appPage.waitForTimeout(240);
+            await appStage.screenshot({ path: out + "/app-both-closed.png" });
+            const appDiagnostics = await appPage.evaluate(() => window.__apeiriaBlinkDiagnostics());
+            const stage = page.locator(".stage");
+            async function capture(id, name) {
+              await page.locator("#" + id).click();
+              await page.waitForTimeout(180);
+              await stage.screenshot({ path: out + "/" + name + ".png" });
+            }
+            await capture("normal", "normal-debug");
+            await capture("left", "left-closed-debug");
+            await capture("right", "right-closed-debug");
+            await capture("both", "both-closed-debug");
+            await page.locator("#auto").click();
+            for (let i = 0; i < 72; i++) {
+              await page.waitForTimeout(42);
+              await stage.screenshot({ path: frames + "/frame-" + String(i).padStart(3, "0") + ".png" });
+            }
+            execFileSync("ffmpeg", ["-y", "-framerate", "24", "-i", frames + "/frame-%03d.png", "-c:v", "libvpx-vp9", "-crf", "32", "-b:v", "0", "-pix_fmt", "yuv420p", out + "/blink.webm"], { stdio: "inherit" });
+            const report = {
+              commit: process.env.GITHUB_SHA || "unknown",
+              generatedAt: new Date().toISOString(),
+              webgl,
+              pageErrors,
+              appDiagnostics
+            };
+            fs.writeFileSync(out + "/report.json", JSON.stringify(report, null, 2));
+            const esc = value => String(value).replace(/[&<>\"']/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[character]));
+            const reportHtml = [
+              "<!doctype html><html lang=\"ja\"><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>APEIRIA WebGL render report</title>",
+              "<style>body{font:14px system-ui;background:#07101a;color:#eaf7ff;margin:20px}main{max-width:1100px;margin:auto}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}figure{margin:0;background:#102231;padding:8px;border-radius:8px}img,video{width:100%;display:block}pre{white-space:pre-wrap;background:#020a10;padding:8px}</style><main>",
+              "<h1>APEIRIA WebGL render report</h1><p>Chromium + SwiftShaderで実際のGLBをWebGL描画した結果です。</p><p>commit: <code>" + esc(report.commit) + "</code><br>生成日時: <code>" + esc(report.generatedAt) + "</code><br>renderer: <code>" + esc(report.webgl.renderer) + "</code></p>",
+              "<h2>実アプリ</h2><div class=\"grid\"><figure><img src=\"app-normal.png\"><figcaption>通常</figcaption></figure><figure><img src=\"app-both-closed.png\"><figcaption>両目閉じ</figcaption></figure></div>",
+              "<h2>片目ごとの検証（枠付き）</h2><div class=\"grid\"><figure><img src=\"normal-debug.png\"><figcaption>通常</figcaption></figure><figure><img src=\"left-closed-debug.png\"><figcaption>左目閉じ</figcaption></figure><figure><img src=\"right-closed-debug.png\"><figcaption>右目閉じ</figcaption></figure><figure><img src=\"both-closed-debug.png\"><figcaption>両目閉じ</figcaption></figure></div>",
+              "<h2>自動瞬き</h2><video controls loop muted playsinline src=\"blink.webm\"></video><p><a href=\"report.json\">診断JSON</a> · <a href=\"../webgl-blink-calibration.html\">検証ページ</a></p><h2>診断</h2><pre>" + esc(JSON.stringify(report, null, 2)) + "</pre></main></html>"
+            ].join("");
+            fs.writeFileSync(out + "/index.html", reportHtml);
+            fs.rmSync(frames, { recursive: true, force: true });
+            if (pageErrors.length) throw new Error("WebGL page errors: " + pageErrors.join(" | "));
+          } finally {
+            await browser.close();
+          }
+          })().catch(error => { console.error(error.stack || error); process.exitCode = 1; });
+          NODE
+      - name: Publish render report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f render-output
+          if git diff --cached --quiet; then
+            echo "No render report changes"
+          else
+            git commit -m "Update WebGL render report [skip ci]"
+            git push origin HEAD:main
+          fi
